@@ -1,0 +1,42 @@
+[build-system]
+requires = [
+    "setuptools",
+    "wheel",
+    "setuptools-scm",
+]
+
+[project]
+name = "lilygo-tdeck-circuitpython"
+description = "CircuitPython driver for LILYGO T-Deck"
+version = "0.0.0+auto.0"
+readme = "README.rst"
+authors = [
+    {name = "Robert Grizzell", email = "robert@grizzell.me"}
+]
+urls = {Homepage = "https://github.com/rgrizzell/LILYGO_T_Deck_CircuitPython"}
+keywords = [
+    "lilygo",
+    "tdeck",
+    "display",
+    "iot",
+    "wifi",
+    "hardware",
+    "micropythoncircuitpython",
+]
+license = {text = "MIT"}
+classifiers = [
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Embedded Systems",
+    "Topic :: System :: Hardware",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+dynamic = ["dependencies", "optional-dependencies"]
+
+[tool.setuptools]
+packages = ["lilygo_tdeck"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+optional-dependencies = {optional = {file = ["optional_requirements.txt"]}}
