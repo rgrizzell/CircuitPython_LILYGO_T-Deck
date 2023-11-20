@@ -70,29 +70,32 @@ import audiobusio
 import board
 import countio
 import gc
+
+import digitalio
 import keypad
 import microcontroller
 import sdcardio
 import storage
 import sys
+from micropython import const
 
 try:
     from typing import Iterator
 except ImportError:
     pass
 
+_KEYBOARD_I2C_ADDR = const(0x55)
+_MICROPHONE_I2C_ADDR = const(0x40)
+_TOUCHSCREEN_I2C_ADDR = const(0x14)
+
 
 class TDeck:
     """Class representing the LILYGO T-Deck.
 
-    :param bool keyboard_backlight: Set to `True` to turn on the keyboard backlight.
-    :param int keyboard_i2c_address: The I2C address of the keyboard. Default: 0x55
     :param bool debug: Print extra debug statements during initialization.
     """
     def __init__(
         self,
-        keyboard_backlight: bool = False,
-        keyboard_i2c_address: int = 0x55,
         debug: bool = False
     ) -> None:
         self.debug = debug
@@ -102,17 +105,16 @@ class TDeck:
         self._i2c = board.I2C()
         self._spi = board.SPI()
 
+        # Touchscreen
+        self._debug("Init touchscreen")
+        int_pin = digitalio.DigitalInOut(board.TOUCH_INT)
+        # TODO: Create driver: https://github.com/rgrizzell/CircuitPython_GT911
+        # self.touchscreen = GT911(self._i2c, _TOUCHSCREEN_I2C_ADDR, int_pin=int_pin)
+
         # Keyboard
         self._debug("Init keyboard")
-        self.keyboard = keyboard_i2c_address
-        if keyboard_backlight:
-            self._debug("Turn on keyboard backlight")
-            buf = bytearray(b'1')
-            self._i2c.try_lock()
-            self._i2c.writeto_then_readfrom(self.keyboard, out_buffer=buf, in_buffer=buf)
-            self._i2c.unlock()
-            if buf != b'1':
-                print("Can not turn on backlight. Please upgrade your keyboard firmware.")
+        self.keyboard = Keyboard(self._i2c, _KEYBOARD_I2C_ADDR)
+        self.get_keypress = self.keyboard.get_keypress
 
         # Trackball
         self._debug("Init Trackball")
@@ -164,17 +166,29 @@ class TDeck:
 
         gc.collect()
 
-    def get_keypress(self) -> str:
-        r = bytearray(1)
-        self._i2c.try_lock()
-        self._i2c.readfrom_into(self.keyboard, r)
-        self._i2c.unlock()
-        if r != b'\x00':
-            return r.decode()
-
     def _debug(self, msg):
         if self.debug:
             print(msg)
+
+
+class Keyboard:
+    """ Controls the keyboard peripheral """
+    def __init__(self, i2c, device_address) -> None:
+        self._i2c = i2c
+        self._i2c_addr = device_address
+
+    def get_keypress(self) -> str:
+        """ Get the last keypress.
+
+        :return: character representing the key that was pressed
+        """
+        buf = bytearray(1)
+        self._i2c.try_lock()
+        self._i2c.readfrom_into(self._i2c_addr, buffer=buf)
+        self._i2c.unlock()
+
+        if buf != b'\x00':
+            return buf.decode()
 
 
 class Trackball:
@@ -195,6 +209,10 @@ class Trackball:
             self.click = keypad.Keys([click], value_when_pressed=False)
 
     def get_trackball(self) -> Iterator[tuple[str, int]]:
+        """ Get the last positional movement in units.
+
+        :return: List of directions and the units of travel since last poll.
+        """
         for d in ["up", "right", "down", "left"]:
             c = getattr(self, d)
             yield d, c.count
