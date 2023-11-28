@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2022 Alec Delaney, written for Adafruit Industries
+# SPDX-FileCopyrightText: Copyright (c) 2023 Robert Grizzell
+#
+# SPDX-License-Identifier: MIT
+
 [build-system]
 requires = [
     "setuptools",
@@ -6,22 +11,22 @@ requires = [
 ]
 
 [project]
-name = "lilygo-tdeck-circuitpython"
-description = "CircuitPython driver for LILYGO T-Deck"
+name = "circuitpython-lilygo-t-deck"
+description = "CircuitPython drivers for the LILYGO T-Deck peripherals."
 version = "0.0.0+auto.0"
 readme = "README.rst"
 authors = [
     {name = "Robert Grizzell", email = "robert@grizzell.me"}
 ]
-urls = {Homepage = "https://github.com/rgrizzell/LILYGO_T_Deck_CircuitPython"}
+urls = {Homepage = "https://github.com/rgrizzell/CircuitPython_LILYGO_T-Deck"}
 keywords = [
+    "adafruit",
+    "blinka",
+    "circuitpython",
+    "micropython",
+    "lilygo-tdeck",
     "lilygo",
-    "tdeck",
-    "display",
-    "iot",
-    "wifi",
-    "hardware",
-    "micropythoncircuitpython",
+    "t-deck",
 ]
 license = {text = "MIT"}
 classifiers = [
@@ -35,7 +40,7 @@ classifiers = [
 dynamic = ["dependencies", "optional-dependencies"]
 
 [tool.setuptools]
-packages = ["lilygo_tdeck"]
+py-modules = ["lilygo_tdeck"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
