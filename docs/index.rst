@@ -22,16 +22,18 @@ Table of Contents
     api
 
 .. toctree::
+    :caption: Device Pin Out
+
+    pins
+
+.. toctree::
     :caption: Tutorials
 
-.. todo:: Add any Learn guide links here. If there are none, then simply delete this todo and leave
-    the toctree above for use later.
 
 .. toctree::
     :caption: Related Products
 
-.. todo:: Add any product links here. If there are none, then simply delete this todo and leave
-    the toctree above for use later.
+    LILYGO T-Deck <https://www.lilygo.cc/products/t-deck>
 
 .. toctree::
     :caption: Other Links
