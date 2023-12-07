@@ -30,7 +30,7 @@ import storage
 from countio import Counter
 
 # from digitalio import DigitalInOut
-from keypad import Keys
+from keypad import Event, Keys
 from micropython import const
 from sdcardio import SDCard
 
@@ -49,14 +49,101 @@ _MICROPHONE_I2C_ADDR = const(0x40)
 _TOUCHSCREEN_I2C_ADDR = const(0x14)
 
 
+class Keyboard:
+    """Controls the keyboard peripheral. This class can be extended to support additional
+    functionality if the keyboard is utilizing custom firmware.
+
+    :param i2c: Object representing the I2C interface used to communicate with the keyboard.
+    :type i2c: I2C
+    :param int device_address: The I2C address of the keyboard device. Default is 0x55 (85).
+    """
+
+    def __init__(self, i2c: I2C, device_address: int = None) -> None:
+        self._i2c = i2c
+        self._i2c_addr = device_address or _KEYBOARD_I2C_ADDR
+
+    def get_keypress(self) -> str | None:
+        """Get the last keypress.
+
+        :return: character representing the key that was pressed
+        """
+        buf = bytearray(1)
+        self._i2c.try_lock()
+        self._i2c.readfrom_into(self._i2c_addr, buffer=buf)
+        self._i2c.unlock()
+
+        if buf != b"\x00":
+            return buf.decode()
+        return None
+
+
+# pylint: disable=too-many-arguments
+class Trackball:
+    """Controls the trackball peripheral.
+
+    :param up_pin: Pin tracking upward movement from the trackball.
+    :type up_pin: Pin
+    :param Pin down_pin: Pin tracking downward movement from the trackball.
+    :type down_pin: Pin
+    :param Pin left_pin: Pin tracking leftward movement from the trackball.
+    :type left_pin: Pin
+    :param Pin right_pin: Pin tracking rightward movement from the trackball.
+    :type right_pin: Pin
+    :param Pin click_pin: Pin tracking presses on the trackball.
+    :type click_pin: Pin
+    """
+
+    def __init__(
+        self,
+        up_pin: Pin,
+        down_pin: Pin,
+        left_pin: Pin,
+        right_pin: Pin,
+        click_pin: Pin = None,
+    ) -> None:
+        self.up = Counter(up_pin)  # pylint: disable=invalid-name
+        self.right = Counter(right_pin)
+        self.down = Counter(down_pin)
+        self.left = Counter(left_pin)
+        if click_pin:
+            self.click = Keys([click_pin], value_when_pressed=False)
+
+    def get_trackball(self) -> Iterator[tuple[str, int]]:
+        """Get the last positional movement in units.
+
+        :return: List of directions and the units of travel since last poll.
+        """
+        for direction in ["up", "right", "down", "left"]:
+            counter = getattr(self, direction)
+            yield direction, counter.count
+            counter.reset()
+
+    def get_click(self) -> Event:
+        """Get the last click event.
+
+        :return: Press or release event
+        """
+        event = self.click.events.get()
+        return event
+
+
 # pylint: disable=too-few-public-methods
 class TDeck:
     """Class representing the LILYGO T-Deck.
 
+    :param keyboard: Object representing the keyboard. If none is provided, one is created.
+    :type keyboard: Keyboard
+    :param trackball: Object representing the trackball. If none is provided, one is created.
+    :type trackball: Trackball
     :param bool debug: Print extra debug statements during initialization.
     """
 
-    def __init__(self, debug: bool = False) -> None:
+    def __init__(
+        self,
+        keyboard: Keyboard = None,
+        trackball: Trackball = None,
+        debug: bool = False,
+    ) -> None:
         self.debug = debug
         if sys.implementation.version[0] < 9:
             raise NotImplementedError(
@@ -74,18 +161,20 @@ class TDeck:
 
         # Keyboard
         self._debug("Init keyboard")
-        self.keyboard = Keyboard(self._i2c, _KEYBOARD_I2C_ADDR)
+        self.keyboard = keyboard or Keyboard(self._i2c)
         self.get_keypress = self.keyboard.get_keypress
 
         # Trackball
         self._debug("Init Trackball")
-        self.trackball = Trackball(
+        self.trackball = trackball or Trackball(
             board.TRACKBALL_UP,
             board.TRACKBALL_RIGHT,
             board.TRACKBALL_DOWN,
             board.TRACKBALL_LEFT,
             board.TRACKBALL_CLICK,
         )
+        self.get_trackball = self.trackball.get_trackball
+        self.get_click = self.trackball.get_click
 
         # SD Card
         self._debug("Init SD Card")
@@ -126,57 +215,3 @@ class TDeck:
     def _debug(self, msg):
         if self.debug:
             print(msg)
-
-
-class Keyboard:
-    """Controls the keyboard peripheral"""
-
-    def __init__(self, i2c: I2C, device_address: int) -> None:
-        self._i2c = i2c
-        self._i2c_addr = device_address
-
-    def get_keypress(self) -> str | None:
-        """Get the last keypress.
-
-        :return: character representing the key that was pressed
-        """
-        buf = bytearray(1)
-        self._i2c.try_lock()
-        self._i2c.readfrom_into(self._i2c_addr, buffer=buf)
-        self._i2c.unlock()
-
-        if buf != b"\x00":
-            return buf.decode()
-        return None
-
-
-# pylint: disable=too-many-arguments
-
-
-class Trackball:
-    """Controls the trackball peripheral."""
-
-    def __init__(
-        self,
-        up_pin: Pin,
-        down_pin: Pin,
-        left_pin: Pin,
-        right_pin: Pin,
-        click_pin: Pin = None,
-    ) -> None:
-        self.up = Counter(up_pin)  # pylint: disable=invalid-name
-        self.right = Counter(right_pin)
-        self.down = Counter(down_pin)
-        self.left = Counter(left_pin)
-        if click_pin:
-            self.click = Keys([click_pin], value_when_pressed=False)
-
-    def get_trackball(self) -> Iterator[tuple[str, int]]:
-        """Get the last positional movement in units.
-
-        :return: List of directions and the units of travel since last poll.
-        """
-        for direction in ["up", "right", "down", "left"]:
-            counter = getattr(self, direction)
-            yield direction, counter.count
-            counter.reset()
